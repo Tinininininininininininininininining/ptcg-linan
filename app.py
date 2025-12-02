@@ -3,71 +3,119 @@ import pandas as pd
 import itertools
 
 # ==========================================
-# 1. 核心配置
+# 1. 核心配置与样式
 # ==========================================
 
-st.set_page_config(page_title="PTCG 战队 BP 助手", page_icon="🃏", layout="wide")
+st.set_page_config(page_title="PTCG 战队 BP 助手 (Pro 4人版)", page_icon="🛡️", layout="wide")
 
-# 评分权重 ("我不想打" 已改为 -2)
-SCORE_MAP = {
-    "优": 2,
-    "小优": 1,
-    "均": 0,
-    "平": 0,
-    "小劣": -1,
-    "劣": -2,
-    "我不想打": -2
-}
-
-# 颜色样式
-COLOR_MAP = {
-    "优": "background-color: #d4edda; color: #155724",
-    "小优": "background-color: #e2e6ea; color: #155724",
-    "均": "background-color: #cce5ff; color: #004085",
-    "平": "background-color: #cce5ff; color: #004085",
-    "小劣": "background-color: #fff3cd; color: #856404",
-    "劣": "background-color: #f8d7da; color: #721c24",
-    "我不想打": "background-color: #343a40; color: #ffffff"
-}
-
-# 队员数据
-RAW_DATA = {
-  "team_data": [
-    { "player": "三毛九鬼龙", "deck": "鬼龙", "matchups": { "比雕恶喷": "优", "尾狸恶喷": "优", "沙奈朵": "劣", "鬼龙": "均", "轰鬼": "均", "密勒顿": "优", "勾喷": "劣", "LTB": "均", "纯恶月": "平", "水恶月": "小劣", "汇流梦幻": "劣", "双无梦幻": "我不想打", "水熊": "小劣", "铁武者": "优", "古剑豹": "优", "赛富豪": "优", "其它": "优" } },
-    { "player": "土豆", "deck": "鬼龙", "matchups": { "比雕恶喷": "优", "尾狸恶喷": "小优", "沙奈朵": "小劣", "鬼龙": "小优", "轰鬼": "小优", "密勒顿": "小优", "勾喷": "小劣", "LTB": "均", "纯恶月": "平", "水恶月": "平", "汇流梦幻": "小优", "双无梦幻": "平", "水熊": "平", "铁武者": "优", "古剑豹": "小优", "赛富豪": "优", "其它": "优" } },
-    { "player": "语申", "deck": "尾狸恶喷", "matchups": { "比雕恶喷": "平", "尾狸恶喷": "平", "沙奈朵": "劣", "鬼龙": "小劣", "轰鬼": "小劣", "密勒顿": "优", "勾喷": "小劣", "LTB": "劣", "纯恶月": "优", "水恶月": "优", "汇流梦幻": "优", "双无梦幻": "优", "水熊": "劣", "铁武者": "平", "古剑豹": "平", "赛富豪": "平", "其它": "优" } },
-    { "player": "ZZ", "deck": "沙奈朵", "matchups": { "比雕恶喷": "优", "尾狸恶喷": "优", "沙奈朵": "平", "鬼龙": "优", "轰鬼": "优", "密勒顿": "平", "勾喷": "优", "LTB": "优", "纯恶月": "优", "水恶月": "优", "汇流梦幻": "优", "双无梦幻": "优", "水熊": "我不想打", "铁武者": "我不想打", "古剑豹": "优", "赛富豪": "优", "其它": "优" } },
-    { "player": "乐子人", "deck": "lostK喷", "matchups": { "比雕恶喷": "优", "尾狸恶喷": "优", "沙奈朵": "劣", "鬼龙": "优", "轰鬼": "优", "密勒顿": "平", "勾喷": "平", "LTB": "平", "纯恶月": "优", "水恶月": "优", "汇流梦幻": "我不想打", "双无梦幻": "我不想打", "水熊": "劣", "铁武者": "劣", "古剑豹": "优", "赛富豪": "优", "其它": "劣" } },
-    { "player": "龟龟", "deck": "涡轮梦幻", "matchups": { "比雕恶喷": "小劣", "尾狸恶喷": "劣", "沙奈朵": "劣", "鬼龙": "平", "轰鬼": "劣", "密勒顿": "优", "勾喷": "我不想打", "LTB": "优", "纯恶月": "优", "水恶月": "优", "汇流梦幻": "小劣", "双无梦幻": "平", "水熊": "优", "铁武者": "优", "古剑豹": "优", "赛富豪": "优", "其它": "优" } }
-  ]
-}
+# 颜色样式：根据 1-6 的数值上色
+# 1=大优(绿) -> 6=大劣(红)
+def get_color_style(val):
+    if not isinstance(val, (int, float)): return ""
+    if val <= 1.5: return "background-color: #22c55e; color: white" # 1: 深绿 (大优)
+    if val <= 2.5: return "background-color: #86efac; color: #14532d" # 2: 浅绿 (小优)
+    if val <= 3.5: return "background-color: #dbeafe; color: #1e3a8a" # 3: 蓝 (均势)
+    if val <= 4.5: return "background-color: #fef08a; color: #713f12" # 4: 黄 (小劣)
+    if val <= 5.5: return "background-color: #fca5a5; color: #7f1d1d" # 5: 橙红 (劣)
+    return "background-color: #ef4444; color: white; font-weight: bold" # 6: 深红 (不想打)
 
 # ==========================================
-# 2. 逻辑函数
+# 2. 默认数据 (备用)
 # ==========================================
+# 龟龟的数据后半部分暂时填充为 3，请使用"上传CSV"功能加载你修改后的准确数据
+DEFAULT_DATA = [
+    { "player": "三毛九鬼龙", "deck": "鬼龙", "matchups": { "比雕恶喷": 2, "尾狸恶喷": 4, "沙奈朵": 3, "鬼龙": 5, "轰鬼": 5, "密勒顿": 4, "勾喷": 6, "LTB": 5, "纯恶轰明月": 6, "水轰明月": 6, "汇流梦幻": 5, "双无梦幻": 6, "水熊": 3, "炎帝铁武者": 2, "古剑豹": 6, "赛富豪": 3, "宙斯系列": 2, "洛奇亚": 6, "卡比兽": 2, "索罗": 2, "毛崖蟹": 2 } },
+    { "player": "土豆", "deck": "鬼龙", "matchups": { "比雕恶喷": 1, "尾狸恶喷": 3, "沙奈朵": 2, "鬼龙": 4, "轰鬼": 3, "密勒顿": 3, "勾喷": 5, "LTB": 4, "纯恶轰明月": 4, "水轰明月": 4, "汇流梦幻": 2, "双无梦幻": 4, "水熊": 2, "炎帝铁武者": 1, "古剑豹": 4, "赛富豪": 1, "宙斯系列": 1, "洛奇亚": 5, "卡比兽": 1, "索罗": 1, "毛崖蟹": 1 } },
+    { "player": "语申", "deck": "尾狸恶喷", "matchups": { "比雕恶喷": 5, "尾狸恶喷": 5, "沙奈朵": 4, "鬼龙": 6, "轰鬼": 6, "密勒顿": 1, "勾喷": 4, "LTB": 6, "纯恶轰明月": 1, "水轰明月": 1, "汇流梦幻": 1, "双无梦幻": 1, "水熊": 5, "炎帝铁武者": 4, "古剑豹": 3, "赛富豪": 5, "宙斯系列": 5, "洛奇亚": 1, "卡比兽": 6, "索罗": 6, "毛崖蟹": 6 } },
+    { "player": "ZZ", "deck": "沙奈朵", "matchups": { "比雕恶喷": 4, "尾狸恶喷": 2, "沙奈朵": 1, "鬼龙": 3, "轰鬼": 2, "密勒顿": 5, "勾喷": 1, "LTB": 3, "纯恶轰明月": 3, "水轰明月": 3, "汇流梦幻": 3, "双无梦幻": 2, "水熊": 4, "炎帝铁武者": 5, "古剑豹": 5, "赛富豪": 2, "宙斯系列": 4, "洛奇亚": 2, "卡比兽": 3, "索罗": 4, "毛崖蟹": 4 } },
+    { "player": "乐子人", "deck": "lostK喷", "matchups": { "比雕恶喷": 3, "尾狸恶喷": 1, "沙奈朵": 6, "鬼龙": 2, "轰鬼": 1, "密勒顿": 6, "勾喷": 3, "LTB": 2, "纯恶轰明月": 2, "水轰明月": 2, "汇流梦幻": 6, "双无梦幻": 5, "水熊": 6, "炎帝铁武者": 6, "古剑豹": 2, "赛富豪": 4, "宙斯系列": 6, "洛奇亚": 4, "卡比兽": 5, "索罗": 3, "毛崖蟹": 3 } },
+    { "player": "龟龟", "deck": "涡轮梦幻", "matchups": { "比雕恶喷": 6, "尾狸恶喷": 6, "沙奈朵": 5, "鬼龙": 1, "轰鬼": 4, "密勒顿": 2, "勾喷": 2, "LTB": 1, "纯恶轰明月": 5, "水轰明月": 5, "汇流梦幻": 4, "双无梦幻": 3, "水熊": 1, "炎帝铁武者": 3, "古剑豹": 1, "赛富豪": 6, "宙斯系列": 3, "洛奇亚": 3, "卡比兽": 4, "索罗": 5, "毛崖蟹": 5 } }
+]
 
-def get_score(rating_text):
-    return SCORE_MAP.get(rating_text, 0)
+# ==========================================
+# 3. CSV 解析函数 (智能处理表头)
+# ==========================================
+def parse_uploaded_csv(file):
+    try:
+        # 读取CSV，不假设表头在第几行
+        df_raw = pd.read_csv(file, header=None)
+        
+        # 寻找包含 "沙奈朵" 或 "比雕恶喷" 的行作为表头行
+        header_row_idx = None
+        for i, row in df_raw.iterrows():
+            row_str = row.astype(str).values
+            if "沙奈朵" in row_str or "比雕恶喷" in row_str:
+                header_row_idx = i
+                break
+        
+        if header_row_idx is None:
+            st.error("CSV 格式无法识别：找不到对手卡组名称行")
+            return None
 
-def style_dataframe(val):
-    return COLOR_MAP.get(val, "")
+        # 重新读取，指定 header 行
+        df = pd.read_csv(file, header=header_row_idx)
+        
+        # 假设前两列是 选手 和 卡组
+        player_col = df.columns[0] # 假设第1列是选手
+        deck_col = df.columns[1]   # 假设第2列是卡组
+        
+        team_data = []
+        
+        # 遍历每一行数据
+        for index, row in df.iterrows():
+            if pd.isna(row[player_col]) or pd.isna(row[deck_col]):
+                continue
+                
+            player_name = str(row[player_col]).strip()
+            deck_name = str(row[deck_col]).strip()
+            
+            # 提取对阵数据
+            matchups = {}
+            for col in df.columns[2:]: # 从第3列开始是对手
+                if pd.isna(col) or "Unnamed" in str(col): continue
+                
+                deck_opponent = str(col).strip()
+                score = row[col]
+                
+                # 尝试转为数字
+                try:
+                    score = float(score)
+                except:
+                    score = 3.0 # 无法解析则默认为3
+                
+                matchups[deck_opponent] = score
+            
+            team_data.append({
+                "player": player_name,
+                "deck": deck_name,
+                "matchups": matchups
+            })
+            
+        return team_data
 
+    except Exception as e:
+        st.error(f"解析出错: {e}")
+        return None
+
+# ==========================================
+# 4. 核心算法 (推荐 4 人)
+# ==========================================
 def calculate_ban_pick(team_data, selected_opponents):
     results = {}
     
-    # 1. Ban 计算
+    # --- 1. Ban 计算 ---
     unique_opponents = list(set(selected_opponents))
     opponent_scores = {} 
     
     for opp_deck in unique_opponents:
         total_score = 0
         for member in team_data:
-            rating = member['matchups'].get(opp_deck, member['matchups'].get("其它", "平"))
-            total_score += get_score(rating)
+            rating = member['matchups'].get(opp_deck, member['matchups'].get("其它", 3))
+            total_score += rating
         opponent_scores[opp_deck] = total_score
     
     if opponent_scores:
-        ban_target = min(opponent_scores, key=opponent_scores.get)
+        ban_target = max(opponent_scores, key=opponent_scores.get)
         ban_reason_score = opponent_scores[ban_target]
     else:
         ban_target = None
@@ -75,109 +123,166 @@ def calculate_ban_pick(team_data, selected_opponents):
 
     results['ban_target'] = ban_target
     results['ban_score'] = ban_reason_score
-    results['opponent_scores'] = opponent_scores
 
-    # 2. Pick 计算
+    # --- 2. Pick 计算 (选4个) ---
     remaining_opponents = selected_opponents.copy()
     if ban_target and ban_target in remaining_opponents:
         remaining_opponents.remove(ban_target)
 
     if not remaining_opponents:
-        results['pick_combo'] = []
-        results['pick_score'] = 0
         return results
 
     all_members = [m['player'] for m in team_data]
-    combos = list(itertools.combinations(all_members, 3))
+    # 修改：组合数改为 4
+    combos_4 = list(itertools.combinations(all_members, 4))
     
-    best_combo = None
-    best_score = -float('inf')
+    best_combo_4 = None
+    best_score_4 = float('inf')
 
-    for combo in combos:
+    # 寻找总分最低的 4 人组
+    for combo in combos_4:
         current_combo_score = 0
         for player_name in combo:
             player_data = next(p for p in team_data if p['player'] == player_name)
             for opp_deck in remaining_opponents:
-                rating = player_data['matchups'].get(opp_deck, player_data['matchups'].get("其它", "平"))
-                current_combo_score += get_score(rating)
+                rating = player_data['matchups'].get(opp_deck, player_data['matchups'].get("其它", 3))
+                current_combo_score += rating
         
-        if current_combo_score > best_score:
-            best_score = current_combo_score
-            best_combo = combo
+        if current_combo_score < best_score_4:
+            best_score_4 = current_combo_score
+            best_combo_4 = combo
 
-    results['pick_combo'] = best_combo
-    results['pick_score'] = best_score
+    results['pick_combo'] = best_combo_4 # 这是一个 4 人元组
     results['remaining_opponents'] = remaining_opponents
+    
+    # --- 3. 风险评估 (Worst Case) ---
+    # 在这 4 个人中，如果被 Ban 掉核心（对这 4 人中贡献最大的），剩下的 3 人表现如何？
+    if best_combo_4:
+        worst_case_score = float('-inf') # 找最坏情况
+        worst_case_banned = None
+        
+        # 遍历这4个人，假设每人都可能被Ban
+        for banned_player in best_combo_4:
+            remaining_3 = [p for p in best_combo_4 if p != banned_player]
+            
+            # 计算这剩下的3人总分
+            score_3 = 0
+            for player_name in remaining_3:
+                player_data = next(p for p in team_data if p['player'] == player_name)
+                for opp_deck in remaining_opponents:
+                    rating = player_data['matchups'].get(opp_deck, player_data['matchups'].get("其它", 3))
+                    score_3 += rating
+            
+            # 如果分数变高（变差），说明这个被Ban的人很重要
+            if score_3 > worst_case_score:
+                worst_case_score = score_3
+                worst_case_banned = banned_player
+        
+        results['risk_analysis'] = {
+            'if_ban': worst_case_banned,
+            'remaining_score': worst_case_score
+        }
+
     return results
 
 # ==========================================
-# 3. 界面渲染
+# 5. 界面渲染
 # ==========================================
 
-st.title("🏆 PTCG 3v3 战队赛 BP 助手")
+st.title("🛡️ PTCG 3v3 战队助手 (4人备战版)")
+st.caption("策略：推荐 4 名队友，防止对方 Ban 人导致阵容崩盘")
 
-# 准备选项
-all_possible_opponents = set()
-for member in RAW_DATA['team_data']:
-    all_possible_opponents.update(member['matchups'].keys())
-sorted_opponents = sorted([x for x in all_possible_opponents if x != "其它"])
-if "其它" in all_possible_opponents:
-    sorted_opponents.append("其它")
-
-# 侧边栏
+# 侧边栏：文件上传
 with st.sidebar:
+    st.header("📂 数据源")
+    uploaded_file = st.file_uploader("上传最新优劣势表格 (CSV)", type="csv")
+    
+    current_team_data = DEFAULT_DATA
+    if uploaded_file is not None:
+        parsed_data = parse_uploaded_csv(uploaded_file)
+        if parsed_data:
+            current_team_data = parsed_data
+            st.success(f"✅ 成功加载 {len(current_team_data)} 名队员数据！")
+        else:
+            st.warning("⚠️ 读取失败，使用默认数据")
+    else:
+        st.info("💡 请上传你修改过龟龟数据的最新表格")
+
+    st.markdown("---")
     st.header("⚙️ 对局设置")
+    
+    # 提取所有对手
+    all_possible_opponents = set()
+    for member in current_team_data:
+        all_possible_opponents.update(member['matchups'].keys())
+    sorted_opponents = sorted([x for x in all_possible_opponents if x != "其它"])
+    
     selected_opponents = []
     default_values = ["沙奈朵", "鬼龙", "密勒顿", "赛富豪", "(无)", "(无)"]
     
     for i in range(6):
         options = ["(无)"] + sorted_opponents
-        def_index = options.index(default_values[i]) if default_values[i] in options else 0
+        def_index = 0
+        if i < len(default_values) and default_values[i] in options:
+             def_index = options.index(default_values[i])
+        
         deck = st.selectbox(f"对手卡组 #{i+1}", options=options, index=def_index, key=f"deck_select_{i}")
         if deck != "(无)":
             selected_opponents.append(deck)
+            
+    st.markdown("---")
     st.write(f"当前已选: {len(selected_opponents)} 套")
 
 # 主区域
 if not selected_opponents:
-    st.warning("👈 请在左侧选择对手的卡组")
+    st.info("👈 请先在左侧上传 CSV 文件，然后选择对手卡组")
 else:
     # 表格
-    st.subheader("📊 优劣势速览表")
+    st.subheader("📊 优劣势速览 (越绿越好)")
     table_data = []
-    for member in RAW_DATA['team_data']:
+    for member in current_team_data:
         row = {"队员": f"{member['player']} ({member['deck']})"}
         for idx, opp in enumerate(selected_opponents):
             col_name = f"{opp} (#{idx+1})"
-            rating = member['matchups'].get(opp, member['matchups'].get("其它", "平"))
+            rating = member['matchups'].get(opp, member['matchups'].get("其它", 3))
             row[col_name] = rating
         table_data.append(row)
     
     df = pd.DataFrame(table_data)
     df.set_index("队员", inplace=True)
-    st.dataframe(df.style.map(style_dataframe), use_container_width=True)
+    st.dataframe(df.style.map(get_color_style), use_container_width=True)
 
     st.markdown("---")
     st.subheader("🧠 AI 战术建议")
     
-    analysis = calculate_ban_pick(RAW_DATA['team_data'], selected_opponents)
+    analysis = calculate_ban_pick(current_team_data, selected_opponents)
     
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### 🔴 建议 Ban")
         if analysis['ban_target']:
             st.error(f"**{analysis['ban_target']}**")
-            st.write(f"威胁评分: {analysis['ban_score']}")
-            st.write("如果不Ban这套，我方总劣势最大。")
+            st.write(f"威胁指数: **{analysis['ban_score']}**")
+            st.write("理由：这是对方所有卡组中，对我方全体威胁最大的。")
         else:
             st.info("数据不足")
 
     with col2:
-        st.markdown("### 🟢 建议 Pick")
-        if analysis['pick_combo']:
-            st.success(f"**{' + '.join(analysis['pick_combo'])}**")
-            st.write("面对剩余对手，这三人胜算最高。")
+        st.markdown("### 🟢 建议 4 人名单")
+        if analysis.get('pick_combo'):
+            # 格式化输出 4 人名单
+            combo = analysis['pick_combo']
+            st.success("**" + " + ".join(combo) + "**")
+            
+            st.markdown("#### 🛡️ 抗压分析")
+            risk = analysis.get('risk_analysis')
+            if risk:
+                st.write(f"如果对方 Ban 掉了 **{risk['if_ban']}** (最坏情况):")
+                st.write(f"剩下的 3 人组合风险值为: **{risk['remaining_score']}**")
+                st.caption("注：我们推荐这 4 个人，是因为即便被 Ban 掉核心，剩下的阵容依然是所有组合中最能打的。")
+                
+            if analysis['remaining_opponents']:
+                 st.markdown("---")
+                 st.caption(f"剩余需应对的对手: {', '.join(analysis['remaining_opponents'])}")
         else:
             st.info("请选择对手")
-
-
